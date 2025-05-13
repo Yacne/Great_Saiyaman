@@ -30,7 +30,7 @@
     }
 
     .chat-container {
-      height: calc(100% - 90px);
+      height: calc(100% - 100px);
       overflow-y: auto;
       padding: 10px 20px 100px;
       display: flex;
@@ -130,8 +130,8 @@
       display: none;
     }
 
-    .chat-image {
-      max-width: 250px;
+    .chat-image, .chat-video {
+      max-width: 300px;
       border-radius: 10px;
       margin-top: 5px;
     }
@@ -144,14 +144,14 @@
 
     .media-preview {
       position: relative;
-      max-width: 120px;
-      max-height: 80px;
+      max-width: 150px;
+      max-height: 90px;
       border: 2px solid red;
       border-radius: 6px;
       overflow: hidden;
     }
 
-    .media-preview img {
+    .media-preview img, .media-preview video {
       width: 100%;
       height: 100%;
       object-fit: cover;
@@ -174,15 +174,14 @@
 </head>
 <body>
   <div class="chat-container" id="chat"></div>
-
   <div class="input-area">
     <div class="media-preview-container" id="media-preview"></div>
     <div class="input-row">
-      <button onclick="document.getElementById('media-input').click()" title="إرسال صورة">
+      <button onclick="document.getElementById('media-input').click()" title="إرسال وسائط">
         <i class="fas fa-paperclip"></i>
       </button>
-      <input type="file" id="media-input" accept="image/*">
-      <textarea id="message-input" placeholder="اكتب ردك هنا..." rows="1"></textarea>
+      <input type="file" id="media-input" accept="image/*,video/*">
+      <textarea id="message-input" placeholder="اكتب رسالتك..." rows="1"></textarea>
       <button onclick="sendMessage()" title="إرسال">
         <i class="fas fa-paper-plane"></i>
       </button>
@@ -190,45 +189,30 @@
   </div>
 
   <script>
-    const chat = document.getElementById('chat');
-    const input = document.getElementById('message-input');
-    const mediaInput = document.getElementById('media-input');
-    const mediaPreview = document.getElementById('media-preview');
+    const chat = document.getElementById("chat");
+    const input = document.getElementById("message-input");
+    const mediaInput = document.getElementById("media-input");
+    const mediaPreview = document.getElementById("media-preview");
     let selectedMedia = null;
 
     const socket = new WebSocket("wss://technoman.glitch.me");
 
-    socket.onmessage = (event) => {
-      const text = event.data;
-      appendMessage(text, "Victim", false);
+    window.onload = () => {
+      chat.innerHTML = localStorage.getItem("pcchat") || "";
+      scrollToBottom();
     };
 
-    function appendMessage(text, sender, isBot, imageUrl = null) {
-      const block = document.createElement('div');
-      block.className = 'chat-block ' + (isBot ? 'bot' : 'user');
-
-      const senderDiv = document.createElement('div');
-      senderDiv.className = 'sender';
-      senderDiv.textContent = sender;
-      block.appendChild(senderDiv);
-
-      if (text) {
-        const msg = document.createElement('div');
-        msg.className = 'chat-message';
-        msg.innerHTML = text.replace(/\n/g, '<br>');
-        block.appendChild(msg);
+    socket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.type === "text") {
+        appendMessage(data.message, "Victim", false);
+      } else if (data.type === "image") {
+        appendMedia("img", data.data, false);
+      } else if (data.type === "video") {
+        appendMedia("video", data.data, false);
       }
-
-      if (imageUrl) {
-        const img = document.createElement('img');
-        img.src = imageUrl;
-        img.className = 'chat-image';
-        block.appendChild(img);
-      }
-
-      chat.appendChild(block);
-      chat.scrollTop = chat.scrollHeight;
-    }
+      saveChat();
+    };
 
     function sendMessage() {
       const text = input.value.trim();
@@ -236,51 +220,83 @@
 
       if (text) {
         appendMessage(text, "TechnoMAN", true);
-        socket.send(text);
+        socket.send(JSON.stringify({ type: "text", message: text }));
         input.value = '';
       }
 
       if (selectedMedia) {
-        appendMessage('', "TechnoMAN", true, URL.createObjectURL(selectedMedia));
+        const reader = new FileReader();
+        const isVideo = selectedMedia.type.startsWith("video");
+        reader.onload = () => {
+          appendMedia(isVideo ? "video" : "img", reader.result, true);
+          socket.send(JSON.stringify({ type: isVideo ? "video" : "image", data: reader.result }));
+        };
+        reader.readAsDataURL(selectedMedia);
         mediaPreview.innerHTML = '';
         selectedMedia = null;
         mediaInput.value = '';
       }
+
+      saveChat();
     }
 
-    mediaInput.addEventListener('change', () => {
+    function appendMessage(text, sender, isBot) {
+      const block = document.createElement("div");
+      block.className = "chat-block " + (isBot ? "bot" : "user");
+
+      const senderDiv = document.createElement("div");
+      senderDiv.className = "sender";
+      senderDiv.textContent = sender;
+      block.appendChild(senderDiv);
+
+      const msg = document.createElement("div");
+      msg.className = "chat-message";
+      msg.innerHTML = text.replace(/\n/g, "<br>");
+      block.appendChild(msg);
+
+      chat.appendChild(block);
+      scrollToBottom();
+    }
+
+    function appendMedia(tag, src, isBot) {
+      const block = document.createElement("div");
+      block.className = "chat-block " + (isBot ? "bot" : "user");
+
+      const media = document.createElement(tag);
+      media.src = src;
+      media.className = tag === "img" ? "chat-image" : "chat-video";
+      if (tag === "video") media.controls = true;
+
+      block.appendChild(media);
+      chat.appendChild(block);
+      scrollToBottom();
+    }
+
+    mediaInput.addEventListener("change", () => {
       if (mediaInput.files.length > 0) {
-        const file = mediaInput.files[0];
-        selectedMedia = file;
-        const url = URL.createObjectURL(file);
-
-        mediaPreview.innerHTML = '';
-        const preview = document.createElement('div');
-        preview.className = 'media-preview';
-
-        const img = document.createElement('img');
-        img.src = url;
-
-        const closeBtn = document.createElement('button');
-        closeBtn.className = 'remove-media';
-        closeBtn.innerHTML = '×';
-        closeBtn.onclick = () => {
-          selectedMedia = null;
-          mediaPreview.innerHTML = '';
-          mediaInput.value = '';
-        };
-
-        preview.appendChild(img);
-        preview.appendChild(closeBtn);
+        selectedMedia = mediaInput.files[0];
+        const isVideo = selectedMedia.type.startsWith("video");
+        const preview = document.createElement(isVideo ? "video" : "img");
+        preview.src = URL.createObjectURL(selectedMedia);
+        if (isVideo) preview.controls = true;
+        preview.style.width = "100%";
+        mediaPreview.innerHTML = "";
         mediaPreview.appendChild(preview);
       }
     });
 
-    input.addEventListener('input', () => {
-      input.style.height = 'auto';
-      input.style.height = input.scrollHeight + 'px';
-      input.style.overflowY = input.scrollHeight > 100 ? 'auto' : 'hidden';
+    input.addEventListener("input", () => {
+      input.style.height = "auto";
+      input.style.height = input.scrollHeight + "px";
     });
+
+    function scrollToBottom() {
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    function saveChat() {
+      localStorage.setItem("pcchat", chat.innerHTML);
+    }
   </script>
 </body>
 </html>
