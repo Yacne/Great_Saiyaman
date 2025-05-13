@@ -1,96 +1,292 @@
 <!DOCTYPE html>
 <html lang="ar">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Great Saiyaman Map</title>
-
-  <!-- Leaflet CSS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css"/>
-
-  <!-- Font Awesome -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css"/>
-
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>خريطة العالم</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
     html, body {
       margin: 0;
+      padding: 0;
       height: 100%;
+      font-family: sans-serif;
       direction: rtl;
-      font-family: 'Arial', sans-serif;
     }
     #map {
-      height: 100vh;
+      height: 100%;
       width: 100%;
     }
-    .search-box {
+    .bottom-bar {
       position: absolute;
-      top: 10px;
+      bottom: 10px;
       right: 10px;
+      display: flex;
+      justify-content: space-between;
+      width: calc(100% - 20px);
+      align-items: center;
       z-index: 1000;
-      background: white;
-      padding: 10px;
-      border-radius: 8px;
-      box-shadow: 0 0 5px rgba(0,0,0,0.3);
     }
-    input[type="text"] {
-      width: 200px;
+    #searchInput {
+      width: 150px;
+      padding: 6px 10px;
+      border-radius: 25px;
+      border: none;
+      outline: none;
+      font-size: 13px;
+      margin-left: 10px;
+    }
+    .control-buttons {
+      display: flex;
+      gap: 8px;
+    }
+    .control-buttons button {
+      background: rgba(0, 0, 0, 0.6);
+      border: none;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    .info-popup {
+      position: absolute;
+      top: 15px;
+      left: 15px;
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 12px;
+      border-radius: 15px;
+      max-height: 80vh;
+      max-width: 300px;
+      overflow-y: auto;
+      overflow-x: auto;
+      font-size: 13px;
+      z-index: 1001;
+      display: none;
+      white-space: pre-line;
+      scrollbar-width: thin;
+    }
+    .info-popup::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .info-popup::-webkit-scrollbar-thumb {
+      background-color: #888;
+      border-radius: 10px;
+    }
+    .info-popup::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    #chatBox {
+      display: flex;
+      align-items: center;
+      margin-top: 10px;
+    }
+    #chatInput {
+      flex: 1;
       padding: 5px;
+      border-radius: 10px;
+      border: none;
     }
-    button {
-      padding: 5px 10px;
+    #sendChat {
+      background: transparent;
+      color: white;
+      border: none;
+      font-size: 18px;
+      cursor: pointer;
+      margin-right: 8px;
+    }
+    #togglePopup, #clearChat {
+      background: rgba(0, 0, 0, 0.6);
+      border: none;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
     }
   </style>
 </head>
-
 <body>
-  <div class="search-box">
-    <input type="text" id="locationInput" placeholder="أدخل اسم المنطقة" />
-    <button onclick="searchLocation()"><i class="fas fa-search"></i> بحث</button>
+  <div id="map"></div>
+  <div class="info-popup" id="infoPopup">
+    <div id="infoContent"></div>
+    <div id="chatBox">
+      <input type="text" id="chatInput" placeholder="سؤال للذكاء الاصطناعي...">
+      <button id="sendChat"><i class="fas fa-paper-plane"></i></button>
+    </div>
+  </div>
+  <div class="bottom-bar">
+    <input type="text" id="searchInput" placeholder="بحث...">
+    <div class="control-buttons">
+      <button id="toggleLayer"><i class="fas fa-layer-group"></i></button>
+      <button id="goToMyLocation"><i class="fas fa-location-crosshairs"></i></button>
+      <button id="togglePopup"><i class="fas fa-eye-slash"></i></button>
+      <button id="clearChat"><i class="fas fa-trash"></i></button>
+    </div>
   </div>
 
-  <div id="map"></div>
-
-  <!-- Leaflet JS -->
-  <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
-
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
-    // إنشاء الخريطة
-    var map = L.map('map').setView([35.7, -0.9], 8);
-
-    // استخدام OpenStreetMap كخريطة أرضية
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    let map = L.map('map', {
+      center: [20, 0],
+      zoom: 2,
+      zoomControl: true
+    });
+    let streetLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© OpenStreetMap contributors'
-    }).addTo(map);
+    });
+    let satelliteLayer = L.tileLayer('https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+      maxZoom: 20,
+      subdomains: ['mt0','mt1','mt2','mt3'],
+      attribution: '© Google Maps Hybrid'
+    });
+    let currentLayer = streetLayer.addTo(map);
+    let myMarker = null;
+    let searchMarker = null;
 
-    var marker;
+    document.getElementById('toggleLayer').onclick = () => {
+      if (map.hasLayer(streetLayer)) {
+        map.removeLayer(streetLayer);
+        satelliteLayer.addTo(map);
+      } else {
+        map.removeLayer(satelliteLayer);
+        streetLayer.addTo(map);
+      }
+    };
 
-    // دالة البحث عن موقع
-    function searchLocation() {
-      var query = document.getElementById("locationInput").value;
-
-      if (!query) return;
-
-      fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`)
-        .then(res => res.json())
-        .then(data => {
-          if (data.length > 0) {
-            var lat = data[0].lat;
-            var lon = data[0].lon;
-            map.setView([lat, lon], 13);
-
-            if (marker) map.removeLayer(marker);
-            marker = L.marker([lat, lon]).addTo(map)
-              .bindPopup(`📍 ${query}`)
-              .openPopup();
-          } else {
-            alert("الموقع غير موجود.");
-          }
-        })
-        .catch(err => {
-          console.error(err);
-          alert("حدث خطأ في الاتصال.");
+    document.getElementById('goToMyLocation').onclick = () => {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(pos => {
+          let lat = pos.coords.latitude;
+          let lon = pos.coords.longitude;
+          map.setView([lat, lon], 18);
+          if (myMarker) map.removeLayer(myMarker);
+          myMarker = L.circleMarker([lat, lon], {
+            radius: 10,
+            color: 'green',
+            fillColor: 'green',
+            fillOpacity: 0.6
+          }).addTo(map).bindPopup("موقعي الحالي");
         });
+      }
+    };
+
+    async function fetchAIInfo(text) {
+      const res = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=AIzaSyCy5nzaiFR_av71dlpBDCPoB-BNLdYLo5k", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: `أنت مساعدي وأنا البطل TechnoMAN. أعطني معلومات دقيقة عن: ${text}` }] }]
+        })
+      });
+      const data = await res.json();
+      return data?.candidates?.[0]?.content?.parts?.[0]?.text || 'لم يتم العثور على محتوى.';
     }
+
+    async function fetchInfoAndShow(lat, lon, query = '') {
+      const infoPopup = document.getElementById('infoPopup');
+      const infoContent = document.getElementById('infoContent');
+      infoPopup.style.display = 'none';
+      try {
+        const ipRes = await fetch('https://api64.ipify.org?format=json');
+        const ipData = await ipRes.json();
+        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`);
+        const locData = await res.json();
+        let dist = "?";
+        if (myMarker) {
+          const pos = myMarker.getLatLng();
+          dist = (map.distance([lat, lon], pos) / 1000).toFixed(2) + ' كم';
+        }
+        const aiInfo = query ? await fetchAIInfo(query) : '';
+        infoContent.innerText = `📍 ${locData.display_name}\n\nالإحداثيات: ${lat.toFixed(5)}, ${lon.toFixed(5)}\nIP: ${ipData.ip}\nالمسافة من موقعك: ${dist}\n------------------------------\n🤖 ذكاء اصطناعي:\n${aiInfo}`;
+        infoPopup.style.display = 'block';
+      } catch {
+        infoContent.innerText = 'تعذر جلب البيانات.';
+        infoPopup.style.display = 'block';
+      }
+    }
+
+    document.getElementById('searchInput').addEventListener('keydown', async function(e) {
+      if (e.key === 'Enter') {
+        const query = e.target.value.trim();
+        if (query === '') {
+          if (searchMarker) {
+            map.removeLayer(searchMarker);
+            searchMarker = null;
+          }
+          document.getElementById('infoPopup').style.display = 'none';
+          return;
+        }
+        const coordMatch = query.match(/(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)/);
+        if (coordMatch) {
+          const lat = parseFloat(coordMatch[1]);
+          const lon = parseFloat(coordMatch[2]);
+          map.setView([lat, lon], 16);
+          if (searchMarker) map.removeLayer(searchMarker);
+          searchMarker = L.circleMarker([lat, lon], {
+            radius: 10,
+            color: 'pink',
+            fillColor: 'pink',
+            fillOpacity: 0.6
+          }).addTo(map);
+          fetchInfoAndShow(lat, lon, query);
+          return;
+        }
+        fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`)
+          .then(res => res.json())
+          .then(data => {
+            if (data.length > 0) {
+              let result = data[0];
+              let lat = parseFloat(result.lat);
+              let lon = parseFloat(result.lon);
+              map.setView([lat, lon], 16);
+              if (searchMarker) map.removeLayer(searchMarker);
+              searchMarker = L.circleMarker([lat, lon], {
+                radius: 10,
+                color: 'pink',
+                fillColor: 'pink',
+                fillOpacity: 0.6
+              }).addTo(map);
+              fetchInfoAndShow(lat, lon, query);
+            } else {
+              alert("لم يتم العثور على نتيجة.");
+            }
+          });
+      }
+    });
+
+    async function sendChatMsg() {
+      const input = document.getElementById('chatInput');
+      const msg = input.value.trim();
+      if (msg) {
+        const reply = await fetchAIInfo(msg);
+        document.getElementById('infoContent').innerText += `\n\n👤: ${msg}\n🤖: ${reply}`;
+        input.value = '';
+      }
+    }
+
+    document.getElementById('sendChat').onclick = sendChatMsg;
+    document.getElementById('chatInput').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') sendChatMsg();
+    });
+
+    document.getElementById('clearChat').onclick = () => {
+      document.getElementById('infoContent').innerText = '';
+    };
+
+    let popupVisible = true;
+    document.getElementById('togglePopup').onclick = () => {
+      const popup = document.getElementById('infoPopup');
+      const icon = document.querySelector('#togglePopup i');
+      popupVisible = !popupVisible;
+      popup.style.display = popupVisible ? 'block' : 'none';
+      icon.className = popupVisible ? 'fas fa-eye-slash' : 'fas fa-eye';
+    };
   </script>
 </body>
 </html>
