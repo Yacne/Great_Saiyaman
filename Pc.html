@@ -216,6 +216,17 @@
 
     function sendMessage() {
       const text = input.value.trim();
+      
+      // أمر مسح الدردشة
+      if (text === '/clear') {
+        clearChat();
+        input.value = '';
+        selectedMedia = null;
+        mediaPreview.innerHTML = '';
+        mediaInput.value = '';
+        return;
+      }
+
       if (!text && !selectedMedia) return;
 
       if (text) {
@@ -270,6 +281,12 @@
       block.appendChild(media);
       chat.appendChild(block);
       scrollToBottom();
+    }
+
+    function clearChat() {
+      chat.innerHTML = '';
+      localStorage.removeItem('pcchat');
+      location.reload();
     }
 
     mediaInput.addEventListener("change", () => {
