@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login - TechnoMAN</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <style>
+    body {
+      margin: 0;
+      font-family: sans-serif;
+      background: #f0f4ff;
+      color: #003366;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2em;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 1em;
+    }
+    header img {
+      width: 50px;
+      height: 50px;
+      margin-right: 10px;
+    }
+    h1 {
+      font-size: 1.2em;
+      color: #003366;
+    }
+    .avatar {
+      font-size: 60px;
+      margin-bottom: 1em;
+      color: #ccc;
+      cursor: pointer;
+    }
+    input[type="file"] {
+      display: none;
+    }
+    input, button {
+      width: 90%;
+      padding: 0.7em;
+      margin: 0.5em 0;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      font-size: 1em;
+    }
+    button {
+      background: #007bff;
+      color: white;
+      border: none;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    #deleteAccount {
+      background: #dc3545;
+      display: none;
+    }
+    .message {
+      margin-top: 1em;
+      color: red;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <img src="logo.png" alt="Logo">
+    <h1>Register to <b>TechnoMAN</b></h1>
+  </header>
+
+  <div class="avatar" id="avatar">
+    <i class="fas fa-user-circle"></i>
+  </div>
+  <input type="file" id="fileInput" accept="image/*">
+
+  <input type="text" id="name" placeholder="Your name">
+  <input type="email" id="email" placeholder="Email">
+  <input type="password" id="password" placeholder="Password">
+  <button id="registerBtn">Register</button>
+  <button id="deleteAccount">Delete Account</button>
+
+  <div class="message" id="message"></div>
+
+  <script>
+    const fileInput = document.getElementById("fileInput");
+    const avatar = document.getElementById("avatar");
+    const registerBtn = document.getElementById("registerBtn");
+    const deleteBtn = document.getElementById("deleteAccount");
+    const message = document.getElementById("message");
+
+    let base64Image = null;
+
+    avatar.onclick = () => fileInput.click();
+    fileInput.onchange = () => {
+      const file = fileInput.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        base64Image = reader.result;
+        avatar.innerHTML = `<img src="${base64Image}" style="width:60px;height:60px;border-radius:50%;">`;
+      };
+      reader.readAsDataURL(file);
+    };
+
+    function showMessage(text, color = "red") {
+      message.style.color = color;
+      message.textContent = text;
+    }
+
+    function updateDeleteVisibility() {
+      const stored = JSON.parse(localStorage.getItem("user"));
+      deleteBtn.style.display = stored ? "block" : "none";
+    }
+
+    registerBtn.onclick = async () => {
+      const name = document.getElementById("name").value.trim();
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
+
+      if (!name || !email || !password) return showMessage("Please fill all fields.");
+
+      try {
+        const res = await fetch("/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, email, password, image: base64Image }),
+        });
+        const data = await res.json();
+        if (!data.success) return showMessage(data.error || "Registration failed.");
+
+        localStorage.setItem("user", JSON.stringify(data.user));
+        showMessage("Registered successfully!", "green");
+        updateDeleteVisibility();
+      } catch (err) {
+        showMessage("Network error. Check your internet connection.");
+      }
+    };
+
+    deleteBtn.onclick = async () => {
+      const user = JSON.parse(localStorage.getItem("user"));
+      if (!user) return showMessage("No account to delete.");
+
+      try {
+        const res = await fetch("/delete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: user.email }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          localStorage.removeItem("user");
+          showMessage("Account deleted.", "green");
+          updateDeleteVisibility();
+          location.reload();
+        } else {
+          showMessage("Could not delete account.");
+        }
+      } catch (err) {
+        showMessage("Network error. Try again.");
+      }
+    };
+
+    updateDeleteVisibility();
+  </script>
+</body>
+</html>
