@@ -2,170 +2,170 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Login - TechnoMAN</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <title>Register | Technoman</title>
   <style>
     body {
+      background: #111;
+      color: #eee;
+      font-family: 'Segoe UI', sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
       margin: 0;
-      font-family: sans-serif;
-      background: #f0f4ff;
-      color: #003366;
+    }
+    .container {
+      background: #1f1f1f;
+      padding: 30px;
+      border-radius: 12px;
+      width: 320px;
+      box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+    }
+    form {
       display: flex;
       flex-direction: column;
-      align-items: center;
-      padding: 2em;
     }
-    header {
-      display: flex;
-      align-items: center;
-      margin-bottom: 1em;
+    form h2 {
+      text-align: center;
+      margin-bottom: 20px;
     }
-    header img {
-      width: 50px;
-      height: 50px;
-      margin-right: 10px;
-    }
-    h1 {
-      font-size: 1.2em;
-      color: #003366;
-    }
-    .avatar {
-      font-size: 60px;
-      margin-bottom: 1em;
-      color: #ccc;
-      cursor: pointer;
+    input[type="text"],
+    input[type="email"],
+    input[type="password"] {
+      padding: 10px;
+      margin-bottom: 15px;
+      border: none;
+      border-radius: 8px;
+      background: #333;
+      color: white;
     }
     input[type="file"] {
       display: none;
     }
-    input, button {
-      width: 90%;
-      padding: 0.7em;
-      margin: 0.5em 0;
-      border: 1px solid #ccc;
+    .file-label {
+      background: #444;
+      padding: 10px;
       border-radius: 8px;
-      font-size: 1em;
+      text-align: center;
+      cursor: pointer;
+      margin-bottom: 10px;
+      user-select: none;
     }
-    button {
-      background: #007bff;
-      color: white;
-      border: none;
-    }
-    button:hover {
-      background: #0056b3;
-    }
-    #deleteAccount {
-      background: #dc3545;
+    #preview {
+      width: 100%;
+      border-radius: 8px;
+      margin-top: 10px;
       display: none;
     }
-    .message {
-      margin-top: 1em;
-      color: red;
+    button {
+      padding: 10px;
+      background: #0099ff;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+    button:hover {
+      background: #007acc;
+    }
+    #message {
+      margin-top: 15px;
+      text-align: center;
+      font-size: 14px;
     }
   </style>
 </head>
 <body>
-
-  <header>
-    <img src="logo.png" alt="Logo">
-    <h1>Register to <b>TechnoMAN</b></h1>
-  </header>
-
-  <div class="avatar" id="avatar">
-    <i class="fas fa-user-circle"></i>
+  <div class="container">
+    <form id="register-form" novalidate>
+      <h2>Create Account</h2>
+      <input type="text" id="name" placeholder="Full Name" required autocomplete="name" />
+      <input type="email" id="email" placeholder="Email Address" required autocomplete="email" />
+      <input type="password" id="password" placeholder="Password" required autocomplete="new-password" />
+      
+      <label class="file-label" for="image">Upload Image</label>
+      <input type="file" id="image" accept="image/*" />
+      <img id="preview" alt="Preview" />
+      
+      <button type="submit">Register</button>
+      <p id="message"></p>
+    </form>
   </div>
-  <input type="file" id="fileInput" accept="image/*">
-
-  <input type="text" id="name" placeholder="Your name">
-  <input type="email" id="email" placeholder="Email">
-  <input type="password" id="password" placeholder="Password">
-  <button id="registerBtn">Register</button>
-  <button id="deleteAccount">Delete Account</button>
-
-  <div class="message" id="message"></div>
 
   <script>
-    const fileInput = document.getElementById("fileInput");
-    const avatar = document.getElementById("avatar");
-    const registerBtn = document.getElementById("registerBtn");
-    const deleteBtn = document.getElementById("deleteAccount");
-    const message = document.getElementById("message");
+    const form = document.getElementById("register-form");
+    const imageInput = document.getElementById("image");
+    const preview = document.getElementById("preview");
+    const messageBox = document.getElementById("message");
 
-    let base64Image = null;
+    let base64Image = "";
 
-    avatar.onclick = () => fileInput.click();
-    fileInput.onchange = () => {
-      const file = fileInput.files[0];
-      if (!file) return;
-
+    imageInput.addEventListener("change", () => {
+      const file = imageInput.files[0];
+      if (!file) {
+        base64Image = "";
+        preview.style.display = "none";
+        preview.src = "";
+        return;
+      }
       const reader = new FileReader();
       reader.onload = () => {
         base64Image = reader.result;
-        avatar.innerHTML = `<img src="${base64Image}" style="width:60px;height:60px;border-radius:50%;">`;
+        preview.src = base64Image;
+        preview.style.display = "block";
       };
       reader.readAsDataURL(file);
-    };
+    });
 
-    function showMessage(text, color = "red") {
-      message.style.color = color;
-      message.textContent = text;
-    }
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      messageBox.textContent = "Registering...";
+      messageBox.style.color = "#ccc";
 
-    function updateDeleteVisibility() {
-      const stored = JSON.parse(localStorage.getItem("user"));
-      deleteBtn.style.display = stored ? "block" : "none";
-    }
-
-    registerBtn.onclick = async () => {
       const name = document.getElementById("name").value.trim();
-      const email = document.getElementById("email").value.trim();
+      const email = document.getElementById("email").value.trim().toLowerCase();
       const password = document.getElementById("password").value;
 
-      if (!name || !email || !password) return showMessage("Please fill all fields.");
-
-      try {
-        const res = await fetch("/register", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, email, password, image: base64Image }),
-        });
-        const data = await res.json();
-        if (!data.success) return showMessage(data.error || "Registration failed.");
-
-        localStorage.setItem("user", JSON.stringify(data.user));
-        showMessage("Registered successfully!", "green");
-        updateDeleteVisibility();
-      } catch (err) {
-        showMessage("Network error. Check your internet connection.");
+      if (!name || !email || !password) {
+        messageBox.textContent = "Please fill all fields.";
+        messageBox.style.color = "orange";
+        return;
       }
-    };
-
-    deleteBtn.onclick = async () => {
-      const user = JSON.parse(localStorage.getItem("user"));
-      if (!user) return showMessage("No account to delete.");
+      if (password.length < 6) {
+        messageBox.textContent = "Password must be at least 6 characters.";
+        messageBox.style.color = "orange";
+        return;
+      }
 
       try {
-        const res = await fetch("/delete", {
+        const response = await fetch("https://technoman.glitch.me/register", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: user.email }),
+          body: JSON.stringify({
+            name,
+            email,
+            password,
+            image: base64Image || null
+          })
         });
-        const data = await res.json();
-        if (data.success) {
-          localStorage.removeItem("user");
-          showMessage("Account deleted.", "green");
-          updateDeleteVisibility();
-          location.reload();
+        const result = await response.json();
+        if (response.ok) {
+          messageBox.textContent = "Registration successful!";
+          messageBox.style.color = "lightgreen";
+          form.reset();
+          preview.style.display = "none";
+          base64Image = "";
         } else {
-          showMessage("Could not delete account.");
+          messageBox.textContent = result.message || "Registration failed.";
+          messageBox.style.color = "red";
         }
       } catch (err) {
-        showMessage("Network error. Try again.");
+        console.error(err);
+        messageBox.textContent = "Connection error.";
+        messageBox.style.color = "red";
       }
-    };
-
-    updateDeleteVisibility();
+    });
   </script>
 </body>
 </html>
